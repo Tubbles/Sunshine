@@ -300,6 +300,11 @@ namespace platf::virtualhid {
       return gamepad->adapter->gamepad()->profile().gamepad_kind == lvh::GamepadProfileKind::steam_triton;
     }
 
+    std::uint16_t motion_report_rate_hz(const std::shared_ptr<gamepad_context_t> &gamepad) {
+      // The Steam Controller (2nd generation) produces a new state about every 4 ms.
+      return is_steam_triton(gamepad) ? 250 : 100;
+    }
+
     void apply_inferred_steam_clicks(const std::shared_ptr<gamepad_context_t> &gamepad, lvh::GamepadState &state) {
       if (!is_steam_triton(gamepad)) {
         return;
@@ -874,8 +879,9 @@ namespace platf::virtualhid {
     warn_unsupported_client_features(id.globalIndex, metadata, support);
     warn_missing_client_features(id.globalIndex, metadata, support);
     if (support.supports_motion) {
-      raise_feedback(gamepad, gamepad_feedback_msg_t::make_motion_event_state(id.clientRelativeIndex, LI_MOTION_TYPE_ACCEL, 100));
-      raise_feedback(gamepad, gamepad_feedback_msg_t::make_motion_event_state(id.clientRelativeIndex, LI_MOTION_TYPE_GYRO, 100));
+      const auto rate = motion_report_rate_hz(gamepad);
+      raise_feedback(gamepad, gamepad_feedback_msg_t::make_motion_event_state(id.clientRelativeIndex, LI_MOTION_TYPE_ACCEL, rate));
+      raise_feedback(gamepad, gamepad_feedback_msg_t::make_motion_event_state(id.clientRelativeIndex, LI_MOTION_TYPE_GYRO, rate));
     }
 
     context.gamepads[id.globalIndex] = std::move(gamepad);
@@ -894,8 +900,9 @@ namespace platf::virtualhid {
     gamepad->feedback_cache = {};
 
     if (gamepad->adapter->support().supports_motion) {
-      raise_feedback_unlocked(gamepad, gamepad_feedback_msg_t::make_motion_event_state(id.clientRelativeIndex, LI_MOTION_TYPE_ACCEL, 100));
-      raise_feedback_unlocked(gamepad, gamepad_feedback_msg_t::make_motion_event_state(id.clientRelativeIndex, LI_MOTION_TYPE_GYRO, 100));
+      const auto rate = motion_report_rate_hz(gamepad);
+      raise_feedback_unlocked(gamepad, gamepad_feedback_msg_t::make_motion_event_state(id.clientRelativeIndex, LI_MOTION_TYPE_ACCEL, rate));
+      raise_feedback_unlocked(gamepad, gamepad_feedback_msg_t::make_motion_event_state(id.clientRelativeIndex, LI_MOTION_TYPE_GYRO, rate));
     }
 
     return 0;
