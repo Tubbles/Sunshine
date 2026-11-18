@@ -194,8 +194,9 @@ jobs:
           validate: true
       - run: echo "::remove-matcher owner=gcc-strip3::"
 
+      # Fork only: the formula builds test_sunshine for upstream's repository alone.
       - name: Run Homebrew tests
-        if: matrix.release != true
+        if: matrix.release != true && github.repository != 'Tubbles/Sunshine'
         env:
           ACTION_TESTPATH: ${{ steps.test.outputs.testpath }}
         run: |
@@ -260,6 +261,7 @@ jobs:
         if: >-
           always() &&
           matrix.release != true &&
+          github.repository != 'Tubbles/Sunshine' &&
           (steps.test.outcome == 'success' || steps.test.outcome == 'failure')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
@@ -273,7 +275,8 @@ jobs:
       - name: Patch homebrew formula
         # remove version from formula as it's not necessary for release versions
         # don't run this on macOS, as the sed command fails
-        if: matrix.release
+        # Fork only: the fork's tag is a branch name, so the version stays.
+        if: matrix.release && github.repository != 'Tubbles/Sunshine'
         run: |
           # variables
           formula_file="homebrew/sunshine.rb"

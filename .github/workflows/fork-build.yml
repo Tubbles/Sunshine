@@ -1,0 +1,61 @@
+---
+# Fork only, not for upstream: builds this branch with the AppImage and
+# Homebrew jobs of ci.yml, without its release, publish and coverage jobs
+# and without secrets.
+name: Fork build
+permissions: {}
+
+on:
+  push:
+    branches:
+      - steam-controller
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: Version
+    permissions: {}
+    runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.version.outputs.release_version }}
+    steps:
+      # The version format of ci.yml's release_setup (yyyy.mdd.hhmmss, UTC),
+      # from the time of the head commit.
+      - name: Version
+        id: version
+        env:
+          TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+        run: |
+          date_part="$(date -u -d "${TIMESTAMP}" +%Y.%-m%d)"
+          time_part="$(date -u -d "${TIMESTAMP}" +%H%M%S)"
+          echo "release_version=${date_part}.$((10#${time_part}))" >> "${GITHUB_OUTPUT}"
+
+  build-linux:
+    name: Linux
+    needs: version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci-linux.yml
+    with:
+      release_commit: ${{ github.sha }}
+      release_version: ${{ needs.version.outputs.release_version }}
+
+  build-homebrew:
+    name: Homebrew
+    needs: version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci-homebrew.yml
+    with:
+      git_username: ${{ github.actor }}
+      publish_release: "false"
+      release_commit: ${{ github.sha }}
+      release_tag: ${{ github.ref_name }}
+      release_version: ${{ needs.version.outputs.release_version }}
+    # Used only to publish, which this workflow never does.
+    secrets:
+      GH_TOKEN: ""
+      GIT_EMAIL: ""
