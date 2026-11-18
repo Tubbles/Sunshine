@@ -1,7 +1,7 @@
 ---
-# Fork only, not for upstream: builds this branch with the AppImage and
-# Homebrew jobs of ci.yml, without its release, publish and coverage jobs
-# and without secrets.
+# Fork only, not for upstream: builds this branch with the Homebrew job of
+# ci.yml, without its release, publish and coverage jobs and without
+# secrets.
 name: Fork build
 permissions: {}
 
@@ -32,16 +32,6 @@ jobs:
           date_part="$(date -u -d "${TIMESTAMP}" +%Y.%-m%d)"
           time_part="$(date -u -d "${TIMESTAMP}" +%H%M%S)"
           echo "release_version=${date_part}.$((10#${time_part}))" >> "${GITHUB_OUTPUT}"
-
-  build-linux:
-    name: Linux
-    needs: version
-    permissions:
-      contents: read
-    uses: ./.github/workflows/ci-linux.yml
-    with:
-      release_commit: ${{ github.sha }}
-      release_version: ${{ needs.version.outputs.release_version }}
 
   build-homebrew:
     name: Homebrew

@@ -38,10 +38,7 @@ jobs:
         include:
           # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#standard-github-hosted-runners-for-public-repositories
           # while GitHub has larger macOS runners, they are not available for our repos :(
-          - os_name: "macos"
-            os_version: "15"
-          - os_name: "macos"
-            os_version: "26"
+          # Fork only: the macOS rows are removed, the fork builds for Linux alone.
           - os_name: "ubuntu"
             os_version: "24.04"
           - os_name: "ubuntu"
@@ -167,6 +164,20 @@ jobs:
           # testing
           cat ./homebrew/sunshine.rb
 
+      # Fork only: the fork has no releases, so livecheck fails, and a branch
+      # name as tag stops matching the revision once the branch moves, so the
+      # formula drops livecheck and pins the revision alone.
+      - name: Adapt formula for the fork
+        if: github.repository == 'Tubbles/Sunshine'
+        run: |
+          perl -0pi -e 's/  # https:\/\/docs\.brew\.sh\/Brew-Livecheck[^\n]*\n  livecheck do\n.*?\n  end\n\n//s' homebrew/sunshine.rb
+          sed -i '/^    tag: /d' homebrew/sunshine.rb
+          if grep -n -E 'livecheck|tag:' homebrew/sunshine.rb; then
+            echo "::error::livecheck or tag is still in the formula"
+            exit 1
+          fi
+          cat homebrew/sunshine.rb
+
       - name: Setup Xvfb
         if: matrix.release != true && runner.os == 'Linux'
         run: |
@@ -193,6 +204,32 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           validate: true
       - run: echo "::remove-matcher owner=gcc-strip3::"
+
+      # Fork only: test-bot leaves the bottle in the action's directory; keep
+      # it with its json and the formula it was built from.
+      - name: Collect bottle
+        if: >-
+          always() &&
+          runner.os == 'Linux' &&
+          matrix.release != true &&
+          github.repository == 'Tubbles/Sunshine'
+        run: |
+          mkdir -p fork-bottle
+          find "${RUNNER_WORKSPACE}/../_actions/LizardByte/actions" -maxdepth 4 \
+            -name 'sunshine--*.bottle.*' -exec cp -v {} fork-bottle/ \;
+          cp -v homebrew/sunshine.rb fork-bottle/
+
+      - name: Upload bottle
+        if: >-
+          always() &&
+          runner.os == 'Linux' &&
+          matrix.release != true &&
+          github.repository == 'Tubbles/Sunshine'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: fork-Homebrew-bottle-${{ matrix.os_name }}-${{ matrix.os_version }}
+          path: fork-bottle/
+          if-no-files-found: error
 
       # Fork only: the formula builds test_sunshine for upstream's repository alone.
       - name: Run Homebrew tests
