@@ -43,8 +43,10 @@ class Sunshine < Formula
   end
 
   option "with-docs", "Enable docs build"
-  option "with-static-boost", "Enable static link of Boost libraries"
-  option "without-static-boost", "Disable static link of Boost libraries" # default option
+  # Fork only: static Boost by default (Homebrew's BuildOptions#with? is true
+  # for an option defined only as without-), so the bottle does not name the
+  # Boost version of Homebrew's build day.
+  option "without-static-boost", "Disable static link of Boost libraries"
 
   # Keep coverage instrumentation in the test binary after test-bot rebuilds the formula from its bottle.
   skip_clean "bin/#{TEST_BINARY}" if IS_UPSTREAM_REPO
@@ -414,14 +416,14 @@ class Sunshine < Formula
       args << "-DBOOST_USE_STATIC=ON"
       ohai "Enabled statically linking Boost libraries"
 
-      unless formula_any_version_installed?("icu4c")
+      unless formula_any_version_installed?("icu4c@79")
         odie <<~EOS
           icu4c must be installed to link against static Boost libraries,
           either install icu4c or use brew install sunshine --with-static-boost instead
         EOS
       end
-      ENV.append "CXXFLAGS", "-I#{formula_opt_include("icu4c")}"
-      icu4c_lib_path = formula_opt_lib("icu4c").to_s
+      ENV.append "CXXFLAGS", "-I#{formula_opt_include("icu4c@79")}"
+      icu4c_lib_path = formula_opt_lib("icu4c@79").to_s
       ENV.append "LDFLAGS", "-L#{icu4c_lib_path}"
       ENV["LIBRARY_PATH"] = icu4c_lib_path
       ohai "Linking against ICU libraries at: #{icu4c_lib_path}"
