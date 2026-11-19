@@ -565,12 +565,18 @@ namespace platf::virtualhid {
         case lvh::GamepadOutputKind::haptics:
           if (gamepad->supports_haptics && output.haptic_effect) {
             const auto &effect = *output.haptic_effect;
+            // The Steam Controller's side byte names six actuators (pads and grips), of which libvirtualhid's
+            // target keeps only 1 to 3 and turns the rest into 0. Send the byte itself, so a client can replay it.
+            auto target = static_cast<std::uint8_t>(std::to_underlying(effect.target));
+            if (is_steam_triton(gamepad) && output.raw_report.size() > 1U) {
+              target = output.raw_report[1];
+            }
             raise_feedback_unlocked(
               gamepad,
               gamepad_feedback_msg_t::make_haptics(
                 gamepad->client_relative_index,
                 {
-                  .target = std::to_underlying(effect.target),
+                  .target = target,
                   .kind = std::to_underlying(effect.kind),
                   .gain_db = effect.gain_db,
                   .intensity = effect.intensity,
